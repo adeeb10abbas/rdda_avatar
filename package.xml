@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>rdda_interface</name>
+  <version>0.0.1</version>
+  <description>The rdda_interface package for ROS2 Humble </description>
+  <maintainer email="abbas.a@northeastern.edu">Ali</maintainer>
+  <license>TODO</license>
+
+  <!-- ROS2 dependencies -->
+  <build_depend>rclcpp</build_depend>
+  <build_depend>rclpy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>trajectory_msgs</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  
+  <build_export_depend>rclcpp</build_export_depend>
+  <build_export_depend>rclpy</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <build_export_depend>trajectory_msgs</build_export_depend>
+  <build_export_depend>rosidl_default_runtime</build_export_depend>
+  
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <depend>std_srvs</depend>
+  <depend>rdda_interfaces_types</depend>
+  <!-- <exec_depend>rdda_interfaces_types</exec_depend> -->
+  
+  <!-- Use ament_cmake instead of catkin -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <export>
+    <!-- Add member_of_group for ROS2 interface packages -->
+    <member_of_group>rosidl_interface_packages</member_of_group>
+  </export>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+</package>
