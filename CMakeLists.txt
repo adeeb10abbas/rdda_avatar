@@ -14,6 +14,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(Boost COMPONENTS system thread program_options REQUIRED)
 find_package(rdda_interfaces_types REQUIRED)
+find_package(Threads REQUIRED)
 
 
 # Include directories
@@ -31,7 +32,7 @@ include_directories(
 # Declare a C++ library
 add_library(${PROJECT_NAME}_src src/rdda_interface/shm.c)
 ament_target_dependencies(${PROJECT_NAME}_src rclcpp std_msgs)
-target_link_libraries(${PROJECT_NAME}_src ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_src ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} rt)
 
 # Declare a C++ executable
 add_executable(${PROJECT_NAME}_node src/rdda_interface/rdda_interface.cpp)
