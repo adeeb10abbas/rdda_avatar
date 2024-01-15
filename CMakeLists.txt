@@ -46,6 +46,9 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(DIRECTORY launch/
+	DESTINATION share/${PROJECT_NAME})
+  
 # Export dependencies
 ament_export_dependencies(rclcpp std_msgs sensor_msgs trajectory_msgs Boost)
 
