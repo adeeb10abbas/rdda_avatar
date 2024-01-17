@@ -15,6 +15,7 @@
   <depend>std_srvs</depend>
   <depend>rdda_interfaces_types</depend>
   <depend>launch_ros</depend>
+  <depend>rosidl_default_runtime</depend>
   <!-- <exec_depend>rdda_interfaces_types</exec_depend> -->
   
   <!-- Use ament_cmake instead of catkin -->

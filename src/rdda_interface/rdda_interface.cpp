@@ -91,13 +91,13 @@ RDDNode::RDDNode(const std::string& name, Rdda *rddaptr, const std::string& type
 
     RCLCPP_INFO(this->get_logger(), "Node initialized");
   
-    rdda_maxvel_srv = this->create_service<rdda_interfaces_types::srv::SetMaxVelocity>(
+    this->rdda_maxvel_srv = this->create_service<rdda_interfaces_types::srv::SetMaxVelocity>(
     "set_max_vel", std::bind(&RDDNode::setMaxVel, this, std::placeholders::_1, std::placeholders::_2));
 
-    rdda_maxeff_srv = this->create_service<rdda_interfaces_types::srv::SetMaxEffort>(
+    this->rdda_maxeff_srv = this->create_service<rdda_interfaces_types::srv::SetMaxEffort>(
         "set_max_eff", std::bind(&RDDNode::setMaxEffort, this, std::placeholders::_1, std::placeholders::_2));
 
-    rdda_stiff_srv = this->create_service<rdda_interfaces_types::srv::SetStiffness>(
+    this->rdda_stiff_srv = this->create_service<rdda_interfaces_types::srv::SetStiffness>(
         "set_stiff", std::bind(&RDDNode::setStiffness, this, std::placeholders::_1, std::placeholders::_2));
 
   }
@@ -110,17 +110,17 @@ void RDDNode::initConfigParams() {
     RCLCPP_INFO(this->get_logger(), "Node config initialized");
     teleop_connection_index = false;
 
-    if (node_type == "right_gripper") joint_names = {"right_index_flex_motor_joint", "right_thumb_flex_motor_joint", "right_thumb_swivel_motor_joint"};
-    else if (node_type == "left_gripper") joint_names = {"left_index_flex_motor_joint", "left_thumb_flex_motor_joint", "left_thumb_swivel_motor_joint"};
+    if (this->node_type == "right_gripper") this->joint_names = {"right_index_flex_motor_joint", "right_thumb_flex_motor_joint", "right_thumb_swivel_motor_joint"};
+    else if (this->node_type == "left_gripper") this->joint_names = {"left_index_flex_motor_joint", "left_thumb_flex_motor_joint", "left_thumb_swivel_motor_joint"};
 
     // Homing slave gripper
-    if (node_type == "right_gripper" || node_type == "left_gripper") {
-        this->homing_finger();
+    if (this->node_type == "right_gripper" || this->node_type == "left_gripper") {
+        homing_finger();
         RCLCPP_INFO(this->get_logger(), "Slave gripper homed");
     }
 
-    if (node_type == "remote") {
-        this->homing_finger();
+    if (this->node_type == "remote") {
+        homing_finger();
         RCLCPP_INFO(this->get_logger(), "Remote gripper homed");
     }
 
@@ -130,6 +130,7 @@ void RDDNode::initConfigParams() {
 
 // Homing slave gripper finger before actuation
 void RDDNode::homing_finger() {
+    mutex_lock(&rdda->mutex);
     rdda_interfaces_types::msg::RDDAPacket packet_msg;
 
     double tau_upper_limit = 0.3;
@@ -137,7 +138,7 @@ void RDDNode::homing_finger() {
     double control_step = 0.05;
     std::vector<double> pos_ref{rdda->motor[0].rddaPacket.pos_out, rdda->motor[1].rddaPacket.pos_out, rdda->motor[2].rddaPacket.pos_out};
     rclcpp::Rate loop_rate(20);
-    std::vector<bool> opened{false, false};
+    std::vector<bool> opened{false, false, false};
 
     // set homing stiffness to 5.0
     for (int i = 0; i < MOTOR_COUNT; i ++) {
@@ -151,21 +152,21 @@ void RDDNode::homing_finger() {
         rdda->motor[i].stiffness = 5.0;
     }
 
-    // Open two fingers to lower bound
+    // // Open two fingers to lower bound
     while(rclcpp::ok() && (!opened[0] || !opened[1] || !opened[2])) {
         for (int i = 0; i < MOTOR_COUNT; i ++) {
+            RCLCPP_INFO(this->get_logger(), "MOTOR %d rdda_packet_tau: %lf", i, rdda->motor[i].rddaPacket.tau);
             if (rdda->motor[i].rddaPacket.tau < tau_upper_limit) {
-                // mutex_lock(&rdda->mutex);
+            //     RCLCPP_INFO(this->get_logger(), "Opening finger %d", i);
                 pos_ref[i] += control_step;
                 rdda->motor[i].rddaPacket.pos_ref = pos_ref[i];
-                std::cout << rdda->motor[0].rddaPacket.tau << " " << rdda->motor[1].rddaPacket.tau << "" 
-                << rdda->motor[2].rddaPacket.tau << std::endl;
-                // mutex_unlock(&rdda->mutex);
+            //     RCLCPP_INFO(this->get_logger(), "rdda_packet_tau: %lf", rdda->motor[i].rddaPacket.tau);
+
             }
-            else {
+            else 
                 opened[i] = true;
-            }
         }
+        
         loop_rate.sleep();
     }
     RCLCPP_INFO(this->get_logger(), "Fingers opened to the max");
@@ -177,34 +178,38 @@ void RDDNode::homing_finger() {
     }
     
     // Wait for stiffness to be updated
-    rclcpp::sleep_for(std::chrono::milliseconds(100));
+    rclcpp::sleep_for(std::chrono::milliseconds(10));
     // Reset motor init position
     for (int i = 0; i < MOTOR_COUNT; i ++) {
         rdda->motor[i].init_pos = rdda->motor[i].motorIn.act_pos;
     }
-
-    // init_srv = this->create_service<std_srvs::srv::Empty>(
-    //         "/slave_initialized",
-    //         std::bind(&RDDNode::initSlave, this, std::placeholders::_1, std::placeholders::_2));
+    RCLCPP_INFO(this->get_logger(), "We done with homing!");
+    // this->init_srv = this->create_service<std_srvs::srv::Empty>(
+    //     "/slave_initialized",
+    //     std::bind(&RDDNode::initSlave, this, std::placeholders::_1, std::placeholders::_2));
     // RCLCPP_INFO(this->get_logger(), "Slave gripper initialized");
+    mutex_unlock(&rdda->mutex);
 }
 
 /* Publish rdda joint msgs at 100Hz */
 void RDDNode::publish_rdda_joint_state() {
     sensor_msgs::msg::JointState states;
     double series_stiffness = 4.0;
-    states.effort.resize(joint_names.size());
-    states.name.resize(joint_names.size());
-    states.position.resize(joint_names.size());
-    states.velocity.resize(joint_names.size());
-    states.header.stamp = this->get_clock()->now();
+    states.effort.resize(this->joint_names.size());
+    states.name.resize(this->joint_names.size());
+    states.position.resize(this->joint_names.size());
+    states.velocity.resize(this->joint_names.size());
+    states.header.stamp = rclcpp::Clock().now();
     mutex_lock(&rdda->mutex);
-    for (size_t i = 0; i < joint_names.size(); i ++) {
+    RCLCPP_INFO(this->get_logger(), "Size of joint_names: %zu", this->joint_names.size());
+
+    for (int i = 0; i < static_cast<int>(joint_names.size()); i++) {
         states.name[i] = joint_names[i];
         states.position[i] = rdda->motor[i].rddaPacket.pos_out + rdda->motor[i].motorIn.act_pre / series_stiffness;
         states.velocity[i] = rdda->motor[i].rddaPacket.vel_out;
         states.effort[i] = -rdda->motor[i].motorIn.act_pre;
     }
+    printf("pos: %lf, %lf, %lf", states.position[0], states.position[1], states.position[2]);
     mutex_unlock(&rdda->mutex);
     rdda_joint_state_pub->publish(states);
 }
@@ -213,6 +218,7 @@ void RDDNode::publish_rdda_joint_state() {
 void RDDNode::publish_rddapacket() {
 
     rdda_interfaces_types::msg::RDDAPacket packet_msg;
+    // RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1, "Publish rdda packet");
     packet_msg.pos.resize(MOTOR_COUNT);
     packet_msg.vel.resize(MOTOR_COUNT);
     packet_msg.tau.resize(MOTOR_COUNT);
@@ -245,7 +251,7 @@ void RDDNode::publish_rddapacket() {
     }
 
     packet_msg.error_signal = rdda->error_signal.error_out;
-    packet_msg.local_stamp = this->get_clock()->now().seconds();
+    packet_msg.local_stamp = rclcpp::Clock().now().seconds();;
     packet_msg.remote_stamp = rdda->ts.remote_stamp;
     packet_msg.time_delay = rdda->ts.delay_cycle * 0.25e-3;
 
@@ -268,7 +274,7 @@ void RDDNode::rddapacket_callback(const std::shared_ptr<const rdda_interfaces_ty
     rdda->error_signal.error_in = packet_msg->error_signal;
     rdda->ts.remote_stamp = packet_msg->local_stamp;
     double last_local_stamp = packet_msg->remote_stamp;
-    rclcpp::Time local_stamp = this->get_clock()->now();
+    rclcpp::Time local_stamp = rclcpp::Clock().now();
     rdda->ts.delay_cycle = int((local_stamp.seconds() - last_local_stamp) / 0.25e-3 / 2);
 
     if (!teleop_connection_index) {
@@ -309,10 +315,12 @@ void RDDNode::run() {
         /* Publisher (wrap) */
         publish_rddapacket();
         if (joint_state_pub_index >= int(teleop_freq/joint_state_pub_freq)) joint_state_pub_index = 0;
-        if (joint_state_pub_index == 0) {publish_rdda_joint_state();}
+        if (joint_state_pub_index == 0) {
+            publish_rdda_joint_state();
+            }
         joint_state_pub_index++;
         /* Subscriber callback loop */
-        rclcpp::spin_some(this->get_node_base_interface());
+        // rclcpp::spin_some(this->get_node_base_interface());
         loop_rate.sleep();
     }
 }
@@ -341,7 +349,8 @@ int main(int argc, char **argv) {
     // Initialize configuration parameters
     node->initConfigParams();
 
-    rclcpp::spin(node);
+    // rclcpp::spin(node);
+    node->run();
 
     // Shutdown ROS node
     rclcpp::shutdown();

@@ -15,6 +15,7 @@ find_package(trajectory_msgs REQUIRED)
 find_package(Boost COMPONENTS system thread program_options REQUIRED)
 find_package(rdda_interfaces_types REQUIRED)
 find_package(Threads REQUIRED)
+find_package(rosidl_default_runtime REQUIRED)
 
 
 # Include directories
@@ -27,6 +28,7 @@ include_directories(
   ${trajectory_msgs_INCLUDE_DIRS}
   ${std_srvs_INCLUDE_DIRS}
   ${rdda_interfaces_types_INCLUDE_DIRS}
+  ${rosidl_default_runtime_INCLUDE_DIRS}
 )
 
 # Declare a C++ library
@@ -36,7 +38,7 @@ target_link_libraries(${PROJECT_NAME}_src ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS
 
 # Declare a C++ executable
 add_executable(${PROJECT_NAME}_node src/rdda_interface/rdda_interface.cpp)
-ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs sensor_msgs rdda_interfaces_types)
+ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs sensor_msgs rdda_interfaces_types rosidl_default_runtime)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME}_src ${Boost_LIBRARIES})
 
 # Install targets
@@ -55,5 +57,6 @@ install(DIRECTORY config/
 
 # Export dependencies
 ament_export_dependencies(rclcpp std_msgs sensor_msgs trajectory_msgs Boost)
+ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
