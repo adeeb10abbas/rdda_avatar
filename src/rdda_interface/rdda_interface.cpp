@@ -1,4 +1,5 @@
 #include "rdda_interface/rdda_interface.h"
+#include <std_srvs/srv/empty.hpp>
 
 using namespace std;
 
@@ -148,19 +149,16 @@ void RDDNode::homing_finger() {
     // IMPORTANT!! For pos_ref to be updated
     rclcpp::sleep_for(std::chrono::milliseconds(100));    
 
-    for (int i = 0; i < MOTOR_COUNT; i ++) {
-        rdda->motor[i].stiffness = 5.0;
-    }
 
     // // Open two fingers to lower bound
     while(rclcpp::ok() && (!opened[0] || !opened[1] || !opened[2])) {
         for (int i = 0; i < MOTOR_COUNT; i ++) {
             RCLCPP_INFO(this->get_logger(), "MOTOR %d rdda_packet_tau: %lf", i, rdda->motor[i].rddaPacket.tau);
             if (rdda->motor[i].rddaPacket.tau < tau_upper_limit) {
-            //     RCLCPP_INFO(this->get_logger(), "Opening finger %d", i);
+                RCLCPP_INFO(this->get_logger(), "Opening finger %d", i);
                 pos_ref[i] += control_step;
                 rdda->motor[i].rddaPacket.pos_ref = pos_ref[i];
-            //     RCLCPP_INFO(this->get_logger(), "rdda_packet_tau: %lf", rdda->motor[i].rddaPacket.tau);
+                RCLCPP_INFO(this->get_logger(), "rdda_packet_tau: %lf", rdda->motor[i].rddaPacket.tau);
 
             }
             else 
@@ -176,6 +174,7 @@ void RDDNode::homing_finger() {
         rdda->motor[i].stiffness = 0.0;
         rdda->motor[i].rddaPacket.tau_ref = 0.2;
     }
+
     
     // Wait for stiffness to be updated
     rclcpp::sleep_for(std::chrono::milliseconds(10));
@@ -184,10 +183,10 @@ void RDDNode::homing_finger() {
         rdda->motor[i].init_pos = rdda->motor[i].motorIn.act_pos;
     }
     RCLCPP_INFO(this->get_logger(), "We done with homing!");
-    // this->init_srv = this->create_service<std_srvs::srv::Empty>(
-    //     "/slave_initialized",
-    //     std::bind(&RDDNode::initSlave, this, std::placeholders::_1, std::placeholders::_2));
-    // RCLCPP_INFO(this->get_logger(), "Slave gripper initialized");
+    init_srv = this->create_service<std_srvs::srv::Empty>(
+        "/slave_initialized",
+        std::bind(&RDDNode::initSlave, this, std::placeholders::_1, std::placeholders::_2));
+    RCLCPP_INFO(this->get_logger(), "Slave gripper initialized");
     mutex_unlock(&rdda->mutex);
 }
 
@@ -201,7 +200,6 @@ void RDDNode::publish_rdda_joint_state() {
     states.velocity.resize(this->joint_names.size());
     states.header.stamp = rclcpp::Clock().now();
     mutex_lock(&rdda->mutex);
-    RCLCPP_INFO(this->get_logger(), "Size of joint_names: %zu", this->joint_names.size());
 
     for (int i = 0; i < static_cast<int>(joint_names.size()); i++) {
         states.name[i] = joint_names[i];
@@ -209,7 +207,7 @@ void RDDNode::publish_rdda_joint_state() {
         states.velocity[i] = rdda->motor[i].rddaPacket.vel_out;
         states.effort[i] = -rdda->motor[i].motorIn.act_pre;
     }
-    printf("pos: %lf, %lf, %lf", states.position[0], states.position[1], states.position[2]);
+    RCLCPP_INFO(this->get_logger(), "pos: %lf, %lf, %lf", states.position[0], states.position[1], states.position[2]);
     mutex_unlock(&rdda->mutex);
     rdda_joint_state_pub->publish(states);
 }
@@ -218,7 +216,7 @@ void RDDNode::publish_rdda_joint_state() {
 void RDDNode::publish_rddapacket() {
 
     rdda_interfaces_types::msg::RDDAPacket packet_msg;
-    // RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1, "Publish rdda packet");
+    RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1, "Publish rdda packet");
     packet_msg.pos.resize(MOTOR_COUNT);
     packet_msg.vel.resize(MOTOR_COUNT);
     packet_msg.tau.resize(MOTOR_COUNT);
@@ -320,7 +318,7 @@ void RDDNode::run() {
             }
         joint_state_pub_index++;
         /* Subscriber callback loop */
-        // rclcpp::spin_some(this->get_node_base_interface());
+        rclcpp::spin_some(this->get_node_base_interface());
         loop_rate.sleep();
     }
 }

@@ -33,12 +33,12 @@ include_directories(
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}_src src/rdda_interface/shm.c)
-ament_target_dependencies(${PROJECT_NAME}_src rclcpp std_msgs)
+ament_target_dependencies(${PROJECT_NAME}_src rclcpp std_msgs std_srvs)
 target_link_libraries(${PROJECT_NAME}_src ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} rt)
 
 # Declare a C++ executable
 add_executable(${PROJECT_NAME}_node src/rdda_interface/rdda_interface.cpp)
-ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs sensor_msgs rdda_interfaces_types rosidl_default_runtime)
+ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs std_srvs sensor_msgs rdda_interfaces_types rosidl_default_runtime)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME}_src ${Boost_LIBRARIES})
 
 # Install targets
