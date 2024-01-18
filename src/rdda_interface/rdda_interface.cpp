@@ -110,8 +110,8 @@ void RDDNode::initConfigParams() {
     RCLCPP_INFO(this->get_logger(), "Node config initialized");
     teleop_connection_index = false;
 
-    if (this->node_type == "right_gripper") this->joint_names = {"right_index_flex_motor_joint", "right_thumb_flex_motor_joint", "right_thumb_swivel_motor_joint"};
-    else if (this->node_type == "left_gripper") this->joint_names = {"left_index_flex_motor_joint", "left_thumb_flex_motor_joint", "left_thumb_swivel_motor_joint"};
+    if (this->node_type ==  "right_glove" || "right_gripper") this->joint_names = {"right_index_flex_motor_joint", "right_thumb_flex_motor_joint", "right_thumb_swivel_motor_joint"};
+    else if (this->node_type == "left_gripper" || "left_gripper") this->joint_names = {"left_index_flex_motor_joint", "left_thumb_flex_motor_joint", "left_thumb_swivel_motor_joint"};
 
     // Homing slave gripper
     if (this->node_type == "right_gripper" || this->node_type == "left_gripper") {
